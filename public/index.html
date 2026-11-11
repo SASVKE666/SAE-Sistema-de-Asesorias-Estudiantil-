@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SAE · Sistema de Asesorías Estudiantil</title>
+<style>
+:root{--navy:#12294d;--gold:#d8a31a;--bg:#f2f4f7;--ink:#1b2433;--mut:#5b6679;--ok:#1f7a4d;--bad:#b3261e;--line:#d9dee6;--card:#fff}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1420;--ink:#e8ecf3;--mut:#9aa6ba;--line:#26324a;--card:#16203a;--navy:#0a1428}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:0 0 .4em;line-height:1.2}
+header{background:var(--navy);color:#fff;padding:.7rem 1rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header b{font-family:Georgia,serif;font-size:1.2rem;border-left:4px solid var(--gold);padding-left:.6rem}
+nav{display:flex;gap:.25rem;flex-wrap:wrap;flex:1}nav a{color:#cfd8e8;padding:.35rem .7rem;border-radius:6px;text-decoration:none}
+nav a.on,nav a:hover{background:rgba(255,255,255,.14);color:#fff}
+main{max-width:980px;margin:0 auto;padding:1.2rem 1rem 3rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem;margin-bottom:.8rem}
+.grid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
+button,.btn{font:inherit;background:var(--navy);color:#fff;border:0;border-radius:7px;padding:.5rem .9rem;cursor:pointer}
+button.gold{background:var(--gold);color:#1b1500;font-weight:600}button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+input,select,textarea{font:inherit;width:100%;padding:.55rem;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink);margin:.2rem 0 .7rem}
+label{font-size:.9rem;color:var(--mut)}
+.av{width:48px;height:48px;border-radius:50%;background:var(--navy);color:var(--gold);display:grid;place-items:center;font:700 1.1rem Georgia;flex:none}
+.row{display:flex;gap:.8rem;align-items:center}.mut{color:var(--mut);font-size:.9rem}
+.tag{font-size:.8rem;padding:.1rem .55rem;border-radius:99px;border:1px solid var(--line)}
+.pendiente{color:#8a5a00;border-color:#d8a31a}.confirmada{color:var(--ok);border-color:var(--ok)}.realizada{color:var(--mut)}.cancelada{color:var(--bad);border-color:var(--bad)}
+.slots{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}.slots button{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.slots button.sel{background:var(--gold);border-color:var(--gold);color:#1b1500}
+.hero{display:grid;gap:1.5rem;grid-template-columns:1.2fr 1fr;align-items:center;padding:2rem 0}
+@media(max-width:720px){.hero{grid-template-columns:1fr}}.hero h1{font-size:clamp(2rem,6vw,3.2rem)}
+#toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:.6rem 1rem;border-radius:8px;display:none;z-index:9}
+#toast.err{background:var(--bad)}.tabs{display:flex;gap:.4rem;margin-bottom:.8rem}
+</style></head><body>
+<header><b>SAE</b><nav id="nav" aria-label="Principal"></nav><span id="who" class="mut" style="color:#cfd8e8"></span></header>
+<main id="app" aria-live="polite"></main><div id="toast" role="status"></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let U=null, sel=null;
+async function api(url,method='GET',body){const r=await fetch('/api'+url,{method,headers:{'Content-Type':'application/json'},body:body&&JSON.stringify(body)});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Error inesperado');return j}
+function toast(m,err){const t=$('#toast');t.textContent=m;t.className=err?'err':'';t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3500)}
+const fecha=f=>new Date(f+'T12:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
+const ini=n=>n.replace(/^(Dr\.|Dra\.|Mtro\.|Mtra\.)\s*/,'').split(' ').slice(0,2).map(x=>x[0]).join('');
+const rutas={
+  catalogo:{roles:['estudiante','docente','secretaria'],t:'Docentes'},
+  mis:{roles:['estudiante','docente','secretaria'],t:'Historial'},
+  agenda:{roles:['docente'],t:'Mi disponibilidad'},
+  bitacora:{roles:['secretaria'],t:'Notificaciones'},
+  qr:{roles:['estudiante','docente','secretaria'],t:'Código QR'}};
+async function init(){U=(await api('/me')).user;nav()}
+function nav(){const r=location.hash.slice(1)||'catalogo';$('#who').innerHTML=U?`${esc(U.nombre)} (${U.rol}) <button class="ghost" style="color:#fff;border-color:#4a5d82" onclick="salir()">Salir</button>`:'';
+  $('#nav').innerHTML=U?Object.entries(rutas).filter(([k,v])=>v.roles.includes(U.rol)).map(([k,v])=>`<a href="#${k}" class="${k===r?'on':''}">${v.t}</a>`).join(''):'';
+  if(!U)return login();({catalogo,mis,agenda,bitacora,qr}[r]||catalogo)()}
+addEventListener('hashchange',nav);
+async function salir(){await api('/logout','POST');U=null;nav()}
+function login(reg){ $('#app').innerHTML=`<section class="hero"><div><h1>Encuentra a tu docente y agenda tu asesoría.</h1>
+<p>Consulta la disponibilidad real de los docentes de la Unidad Académica de Economía, reserva un horario y recibe confirmación. Gratis y desde tu celular.</p></div>
+<form class="card" id="f"><h2>${reg?'Crear cuenta':'Iniciar sesión'}</h2>
+<label for="m">Matrícula o clave de docente</label><input id="m" required autocomplete="username">
+${reg?'<label for="e">Correo electrónico</label><input id="e" type="email" required autocomplete="email">':''}
+<label for="p">Contraseña${reg?' (mínimo 8 caracteres)':''}</label><input id="p" type="password" required minlength="${reg?8:1}" autocomplete="${reg?'new-password':'current-password'}">
+<button class="gold" style="width:100%">${reg?'Crear cuenta':'Entrar'}</button>
+<p class="mut" style="text-align:center"><a href="#" onclick="login(${!reg});return false">${reg?'Ya tengo cuenta':'Soy estudiante y no tengo cuenta'}</a></p></form></section>`;
+  $('#f').onsubmit=async e=>{e.preventDefault();try{await api(reg?'/registro':'/login','POST',{matricula:$('#m').value,email:reg?$('#e').value:undefined,password:$('#p').value});await init()}catch(x){toast(x.message,1)}}}
+async function catalogo(){ $('#app').innerHTML=`<h2>Docentes</h2><label for="b">Busca por docente o materia</label><input id="b" type="search" placeholder="Ej. Estadística"><div id="l" class="grid"></div><div id="det"></div>`;
+  const pintar=async()=>{const d=await api('/docentes?q='+encodeURIComponent($('#b').value));
+    $('#l').innerHTML=d.map(x=>`<div class="card"><div class="row"><div class="av">${esc(ini(x.nombre))}</div><div><b>${esc(x.nombre)}</b><div class="mut">${esc(x.cubiculo||'')}</div></div></div>
+    <p>${esc(x.materias)}</p><span class="tag">${x.libres} horarios libres</span> ${U.rol==='estudiante'?`<button class="gold" style="float:right" onclick="agendar(${x.id},'${esc(x.nombre)}','${esc(x.materias.split(',')[0])}')">Agendar</button>`:''}</div>`).join('')||'<p class="mut">Sin resultados. Prueba con otra materia.</p>'};
+  $('#b').oninput=pintar;pintar()}
+async function agendar(id,nombre,materia){sel=null;const hs=await api(`/docentes/${id}/horarios`);
+  $('#det').innerHTML=`<div class="card"><h3>Asesoría con ${esc(nombre)}</h3>${hs.length?`<label>Elige un horario</label><div class="slots">${hs.map(h=>`<button data-id="${h.id}" onclick="sel=${h.id};document.querySelectorAll('.slots button').forEach(b=>b.classList.toggle('sel',b.dataset.id==sel))">${fecha(h.fecha)} · ${h.hora}</button>`).join('')}</div>
+  <label for="ma">Materia</label><input id="ma" value="${esc(materia)}"><label for="du">¿Cuál es tu duda?</label><textarea id="du" rows="3" placeholder="Describe el tema para que el docente se prepare"></textarea>
+  <button class="gold" onclick="enviar()">Solicitar asesoría</button>`:'<p class="mut">Este docente no tiene horarios libres por ahora.</p>'}</div>`;$('#det').scrollIntoView({behavior:'smooth'})}
+async function enviar(){if(!sel)return toast('Elige un horario.',1);try{await api('/asesorias','POST',{horario_id:sel,materia:$('#ma').value,duda:$('#du').value});toast('Solicitud enviada. Te llegó una confirmación.');location.hash='mis'}catch(x){toast(x.message,1)}}
+async function mis(){const a=await api('/asesorias');$('#app').innerHTML=`<h2>Historial de asesorías</h2>`+(a.map(x=>`<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(x.materia)}</b><span class="tag ${x.estado}">${x.estado}</span></div>
+  <div class="mut">${fecha(x.fecha)} · ${x.hora} · ${U.rol==='docente'?'Estudiante: '+esc(x.estudiante):'Docente: '+esc(x.docente)}${U.rol==='secretaria'?' · Estudiante: '+esc(x.estudiante):''}</div><p>${esc(x.duda)}</p>
+  ${acciones(x)}</div>`).join('')||'<p class="mut">Aún no hay asesorías. Ve a Docentes para agendar la primera.</p>')}
+function acciones(x){if(x.estado==='cancelada'||x.estado==='realizada')return'';
+  if(U.rol==='docente')return(x.estado==='pendiente'?`<button onclick="estado(${x.id},'confirmada')">Confirmar</button> `:`<button onclick="estado(${x.id},'realizada')">Marcar realizada</button> `)+`<button class="ghost" onclick="estado(${x.id},'cancelada')">Cancelar</button>`;
+  return U.rol==='estudiante'?`<button class="ghost" onclick="estado(${x.id},'cancelada')">Cancelar asesoría</button>`:''}
+async function estado(id,e){try{await api('/asesorias/'+id,'PATCH',{estado:e});toast('Asesoría '+e+'.');mis()}catch(x){toast(x.message,1)}}
+function agenda(){$('#app').innerHTML=`<h2>Mi disponibilidad</h2><form class="card" id="h"><label for="fe">Fecha</label><input id="fe" type="date" required><label for="ho">Hora</label><input id="ho" type="time" required>
+<button class="gold">Agregar horario</button></form>`;$('#h').onsubmit=async e=>{e.preventDefault();try{await api('/horarios','POST',{fecha:$('#fe').value,hora:$('#ho').value});toast('Horario agregado.')}catch(x){toast(x.message,1)}}}
+async function bitacora(){const n=await api('/notificaciones');$('#app').innerHTML=`<h2>Notificaciones registradas</h2><p class="mut">Copia de cada confirmación. “Pendiente” significa que el servidor de correo (SMTP) no está configurado.</p>`+
+  n.map(x=>`<div class="card"><b>${esc(x.asunto)}</b> <span class="tag">${x.enviado?'enviado':'pendiente'}</span><div class="mut">${esc(x.destinatario)} · ${esc(x.fecha)}</div><pre style="white-space:pre-wrap;margin:.4rem 0 0">${esc(x.cuerpo)}</pre></div>`).join('')}
+async function qr(){const r=await api('/qr');$('#app').innerHTML=`<h2>Acceso por código QR</h2><div class="card row"><img src="${r.png}" width="200" height="200" alt="Código QR hacia ${esc(r.url)}"><div><p>Imprímelo en carteles de la facultad. Lleva directo al sistema.</p><p class="mut">${esc(r.url)}</p></div></div>`}
+init();
+</script></body></html>
