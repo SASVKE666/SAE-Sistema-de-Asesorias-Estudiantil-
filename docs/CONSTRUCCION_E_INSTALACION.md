@@ -36,7 +36,7 @@ SQLite (data/sae.db)  +  notificaciones (SMTP o bitácora)
 
 ### Decisiones de diseño y seguridad
 - **Registro solo con matrícula del padrón** (actividad 1.3.1). Docentes y secretaría se dan de alta desde `seed.js`.
-- **Contraseñas** con bcrypt; **sesión** en cookie firmada, `httpOnly`, 8 horas; freno a fuerza bruta (8 intentos por 10 min por IP).
+- **Contraseñas** con bcrypt; **sesión** en cookie firmada, `httpOnly`, 8 horas; freno a fuerza bruta: solo cuentan los **fallos**, por matrícula + IP (8 en 10 min; el acceso correcto limpia el contador) y un tope amplio de 100 fallos por IP. Así quien se equivoca no bloquea a los demás aunque compartan la red de la facultad.
 - **Consultas parametrizadas** (evita inyección SQL) y escape de HTML en la interfaz (evita XSS).
 - **Reserva atómica:** `UPDATE horarios SET libre=0 WHERE id=? AND libre=1`; si dos estudiantes pulsan a la vez, solo uno gana.
 - **Permisos por rol:** el estudiante agenda y cancela las suyas; el docente confirma, realiza o cancela las suyas; la secretaría ve todo y la bitácora.
@@ -80,10 +80,11 @@ SQLite (data/sae.db)  +  notificaciones (SMTP o bitácora)
 | `SESSION_SECRET` | Firma de sesiones. **Obligatorio cambiarlo en producción** | valor de ejemplo |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Correo real | sin SMTP: solo bitácora |
 | `DB_FILE` | Ruta de la base | `data/sae.db` |
+| `TRUST_PROXY` | Número de proxies de confianza delante de la app (ej. `1` con Nginx); necesario para que el límite de intentos vea la IP real | sin proxy: desactivado |
 
 ## 4. Puesta en producción (resumen)
 1. Servidor con Node 22.5+ (VPS o hosting con Node). Dominio y **certificado SSL** (por ejemplo con Nginx + Let's Encrypt como proxy hacia el puerto 3000).
-2. Define `BASE_URL=https://tu-dominio`, un `SESSION_SECRET` largo y aleatorio y las variables SMTP (el correo institucional o un servicio SMTP).
+2. Define `BASE_URL=https://tu-dominio`, `TRUST_PROXY=1` (si usas Nginx), un `SESSION_SECRET` largo y aleatorio y las variables SMTP (el correo institucional o un servicio SMTP).
 3. **Sustituye los datos de demostración:** edita `seed.js` con el padrón real y los docentes reales antes del primer arranque (o elimina `data/sae.db` y vuelve a iniciar). Cambia las contraseñas de demostración.
 4. Mantén el proceso activo con `pm2 start server.js --name sae`. Respalda `data/sae.db` periódicamente.
 5. Genera el QR desde la sección "Código QR" e imprímelo para carteles.
