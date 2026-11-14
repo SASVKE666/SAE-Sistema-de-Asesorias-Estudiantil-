@@ -42,15 +42,30 @@ const verify = t => { try { const [p, s] = t.split('.'); const ok = crypto.creat
   if (s.length !== ok.length || !crypto.timingSafeEqual(Buffer.from(s), Buffer.from(ok))) return null;
   const d = JSON.parse(Buffer.from(p, 'base64url').toString()); return d.exp > Date.now() ? d : null; } catch { return null; } };
 const app = express();
+// Detrás de Nginx/proxy, req.ip sería la del proxy. Actívalo solo si hay proxy de confianza (ej. TRUST_PROXY=1); si no, X-Forwarded-For se podría falsificar.
+if (process.env.TRUST_PROXY) app.set('trust proxy', /^\d+$/.test(process.env.TRUST_PROXY) ? +process.env.TRUST_PROXY : process.env.TRUST_PROXY);
 app.use(express.json({ limit: '20kb' }));
 app.use((req, res, next) => { res.set({ 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin' });
   const m = /sae=([^;]+)/.exec(req.headers.cookie || ''); const s = m && verify(m[1]); req.user = s ? one('SELECT id,matricula,nombre,email,rol FROM users WHERE id=?', s.uid) : null; next(); });
 const auth = (...roles) => (req, res, next) => !req.user ? res.status(401).json({ error: 'Inicia sesión.' }) :
   roles.length && !roles.includes(req.user.rol) ? res.status(403).json({ error: 'No tienes permiso para esta acción.' }) : next();
 const abrir = (res, u) => res.cookie('sae', sign({ uid: u.id, exp: Date.now() + 8 * 3600e3 }), { httpOnly: true, sameSite: 'lax', secure: BASE.startsWith('https'), maxAge: 8 * 3600e3 });
-const intentos = new Map(); // freno simple a fuerza bruta: 8 intentos / 10 min por IP
-const limite = (req, res, next) => { const k = req.ip, n = (intentos.get(k) || []).filter(t => Date.now() - t < 600e3); if (n.length >= 8) return res.status(429).json({ error: 'Demasiados intentos. Espera 10 minutos.' }); n.push(Date.now()); intentos.set(k, n); next(); };
-
+// Freno a fuerza bruta: solo cuentan los intentos FALLIDOS (login o registro con respuesta de error), por matrícula + IP.
+// Así una persona que se equivoca no bloquea a las demás aunque compartan IP (red de la facultad, NAT) y los accesos correctos no gastan el cupo.
+const VENTANA = 600e3, MAX_POR_CUENTA = 8, MAX_POR_IP = 100; // 8 fallos / 10 min por matrícula+IP; tope amplio por IP contra probar muchas matrículas
+const fallos = new Map(); // clave -> marcas de tiempo de los fallos recientes
+const recientes = k => { const n = (fallos.get(k) || []).filter(t => Date.now() - t < VENTANA); n.length ? fallos.set(k, n) : fallos.delete(k); return n; };
+const limite = (req, res, next) => {
+  const ip = req.ip || '', cuenta = `${ip}|${String(req.body?.matricula ?? '').trim().toUpperCase().slice(0, 40)}`;
+  if (recientes(cuenta).length >= MAX_POR_CUENTA || recientes(ip).length >= MAX_POR_IP)
+    return res.status(429).json({ error: 'Demasiados intentos. Espera 10 minutos.' });
+  res.on('finish', () => {
+    if (res.statusCode < 400) return fallos.delete(cuenta);                       // acceso correcto: se limpia el historial de esa cuenta
+    for (const k of [cuenta, ip]) fallos.set(k, [...recientes(k), Date.now()]);   // fallo: cuenta contra la cuenta y contra la IP
+    if (fallos.size > 5000) for (const k of fallos.keys()) recientes(k);          // limpieza de claves vencidas para no crecer sin límite
+  });
+  next();
+};
 app.post('/api/registro', limite, (req, res) => {
   const { matricula, email, password } = req.body || {};
   if (!matricula || !email || !password || password.length < 8) return res.status(400).json({ error: 'Completa matrícula, correo y una contraseña de 8+ caracteres.' });
