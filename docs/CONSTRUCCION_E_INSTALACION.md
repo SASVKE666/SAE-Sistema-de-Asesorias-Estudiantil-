@@ -38,6 +38,7 @@ SQLite (data/sae.db)  +  notificaciones (SMTP o bitácora)
 - **Registro solo con matrícula del padrón** (actividad 1.3.1). Docentes y secretaría se dan de alta desde `seed.js`.
 - **Contraseñas** con bcrypt; **sesión** en cookie firmada, `httpOnly`, 8 horas; freno a fuerza bruta: solo cuentan los **fallos**, por matrícula + IP (8 en 10 min; el acceso correcto limpia el contador) y un tope amplio de 100 fallos por IP. Así quien se equivoca no bloquea a los demás aunque compartan la red de la facultad.
 - **Consultas parametrizadas** (evita inyección SQL) y escape de HTML en la interfaz (evita XSS).
+- **Horarios vencidos:** un horario que ya empezó no se puede reservar (400, sin consumirlo) y los listados no lo ofrecen; se calcula en la hora local de la facultad (`ZONA_HORARIA`), no en UTC.
 - **Reserva atómica:** `UPDATE horarios SET libre=0 WHERE id=? AND libre=1`; si dos estudiantes pulsan a la vez, solo uno gana.
 - **Permisos por rol:** el estudiante agenda y cancela las suyas; el docente confirma, realiza o cancela las suyas; la secretaría ve todo y la bitácora.
 - **Correos:** si hay SMTP configurado se envían; si no, se guardan en la bitácora con "pendiente" para que el sistema funcione igual en pruebas.
@@ -80,6 +81,7 @@ SQLite (data/sae.db)  +  notificaciones (SMTP o bitácora)
 | `SESSION_SECRET` | Firma de sesiones. **Obligatorio cambiarlo en producción** | valor de ejemplo |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Correo real | sin SMTP: solo bitácora |
 | `DB_FILE` | Ruta de la base | `data/sae.db` |
+| `ZONA_HORARIA` | Zona horaria IANA de la facultad. Los horarios se guardan en hora local; con esta zona se decide cuáles ya pasaron (no se pueden reservar ni se ofrecen) | `America/Mazatlan` |
 | `TRUST_PROXY` | Número de proxies de confianza delante de la app (ej. `1` con Nginx); necesario para que el límite de intentos vea la IP real | sin proxy: desactivado |
 
 ## 4. Puesta en producción (resumen)
