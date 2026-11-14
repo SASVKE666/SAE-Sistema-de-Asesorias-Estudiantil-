@@ -2,32 +2,64 @@
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SAE · Sistema de Asesorías Estudiantil</title>
 <style>
-:root{--navy:#12294d;--gold:#d8a31a;--bg:#f2f4f7;--ink:#1b2433;--mut:#5b6679;--ok:#1f7a4d;--bad:#b3261e;--line:#d9dee6;--card:#fff}
-@media(prefers-color-scheme:dark){:root{--bg:#0e1420;--ink:#e8ecf3;--mut:#9aa6ba;--line:#26324a;--card:#16203a;--navy:#0a1428}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
-h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:0 0 .4em;line-height:1.2}
-header{background:var(--navy);color:#fff;padding:.7rem 1rem;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:5}
-header b{font-family:Georgia,serif;font-size:1.2rem;border-left:4px solid var(--gold);padding-left:.6rem}
-nav{display:flex;gap:.25rem;flex-wrap:wrap;flex:1}nav a{color:#cfd8e8;padding:.35rem .7rem;border-radius:6px;text-decoration:none}
-nav a.on,nav a:hover{background:rgba(255,255,255,.14);color:#fff}
-main{max-width:980px;margin:0 auto;padding:1.2rem 1rem 3rem}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1rem;margin-bottom:.8rem}
-.grid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fill,minmax(270px,1fr))}
-button,.btn{font:inherit;background:var(--navy);color:#fff;border:0;border-radius:7px;padding:.5rem .9rem;cursor:pointer}
-button.gold{background:var(--gold);color:#1b1500;font-weight:600}button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+:root{--navy:#12294d;--navy2:#1d3f6e;--gold:#d8a31a;--gold2:#f0c046;--bg:#f4f6fa;--ink:#1b2433;--mut:#5b6679;--ok:#1f7a4d;--bad:#b3261e;--line:#dfe4ec;--card:#fff;--shadow:0 1px 2px rgba(18,41,77,.06),0 6px 20px rgba(18,41,77,.07);--r:14px}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1220;--ink:#e8ecf3;--mut:#9aa6ba;--line:#26324a;--card:#141e33;--navy:#0a1428;--navy2:#13264a;--shadow:0 6px 24px rgba(0,0,0,.35)}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;margin:0 0 .45em;line-height:1.2;letter-spacing:-.01em}
+h2{font-size:1.6rem}h3{font-size:1.2rem}
+header{background:linear-gradient(100deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;padding:.75rem 1.2rem;display:flex;gap:1.2rem;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:5;box-shadow:0 2px 14px rgba(10,20,40,.25)}
+header b{font-family:Georgia,serif;font-size:1.25rem;letter-spacing:.04em;border-left:4px solid var(--gold);padding-left:.7rem}
+nav{display:flex;gap:.3rem;flex-wrap:wrap;flex:1}nav a{color:#c9d5ea;padding:.4rem .8rem;border-radius:999px;text-decoration:none;font-size:.95rem;transition:background .15s,color .15s}
+nav a.on{background:var(--gold);color:#1b1500;font-weight:600}nav a:hover{background:rgba(255,255,255,.14);color:#fff}
+#who{font-size:.9rem;display:flex;gap:.6rem;align-items:center}#who button{padding:.3rem .7rem;font-size:.85rem}
+main{max-width:1040px;margin:0 auto;padding:1.6rem 1.1rem 3.5rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:1.15rem;margin-bottom:.9rem;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s}
+.grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
+.grid>.card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(18,41,77,.13)}
+button,.btn{font:inherit;background:var(--navy);color:#fff;border:0;border-radius:9px;padding:.55rem 1rem;cursor:pointer;font-weight:500;transition:transform .08s,filter .15s}
+button:hover{filter:brightness(1.12)}button:active{transform:scale(.98)}
+button.gold{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1b1500;font-weight:700;box-shadow:0 3px 10px rgba(216,163,26,.35)}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);box-shadow:none}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-input,select,textarea{font:inherit;width:100%;padding:.55rem;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink);margin:.2rem 0 .7rem}
-label{font-size:.9rem;color:var(--mut)}
-.av{width:48px;height:48px;border-radius:50%;background:var(--navy);color:var(--gold);display:grid;place-items:center;font:700 1.1rem Georgia;flex:none}
-.row{display:flex;gap:.8rem;align-items:center}.mut{color:var(--mut);font-size:.9rem}
-.tag{font-size:.8rem;padding:.1rem .55rem;border-radius:99px;border:1px solid var(--line)}
-.pendiente{color:#8a5a00;border-color:#d8a31a}.confirmada{color:var(--ok);border-color:var(--ok)}.realizada{color:var(--mut)}.cancelada{color:var(--bad);border-color:var(--bad)}
-.slots{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0}.slots button{background:var(--card);color:var(--ink);border:1px solid var(--line)}
-.slots button.sel{background:var(--gold);border-color:var(--gold);color:#1b1500}
-.hero{display:grid;gap:1.5rem;grid-template-columns:1.2fr 1fr;align-items:center;padding:2rem 0}
-@media(max-width:720px){.hero{grid-template-columns:1fr}}.hero h1{font-size:clamp(2rem,6vw,3.2rem)}
-#toast{position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:.6rem 1rem;border-radius:8px;display:none;z-index:9}
-#toast.err{background:var(--bad)}.tabs{display:flex;gap:.4rem;margin-bottom:.8rem}
+input,select,textarea{font:inherit;width:100%;padding:.6rem .75rem;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);margin:.25rem 0 .9rem;transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(216,163,26,.2);outline:none}
+label{font-size:.88rem;color:var(--mut);font-weight:500}
+.av{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--navy2),var(--navy));color:var(--gold2);display:grid;place-items:center;font:700 1.15rem Georgia;flex:none;box-shadow:inset 0 0 0 2px rgba(216,163,26,.4)}
+.row{display:flex;gap:.85rem;align-items:center}.mut{color:var(--mut);font-size:.9rem}
+.tag{font-size:.8rem;font-weight:600;padding:.15rem .65rem;border-radius:99px;border:1px solid var(--line);display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
+.tag::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pendiente{color:#8a5a00;border-color:#e8c46a;background:#fff8e6}.confirmada{color:var(--ok);border-color:#9fd3b8;background:#eaf7f0}
+.realizada{color:var(--mut)}.cancelada{color:var(--bad);border-color:#f0b5b0;background:#fdeeed}
+.slots{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0 1rem}
+.slots button{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:.92rem;padding:.45rem .8rem;box-shadow:none}
+.slots button:hover{border-color:var(--gold);filter:none}
+.slots button.sel{background:var(--gold);border-color:var(--gold);color:#1b1500;font-weight:700}
+.hero{display:grid;gap:2rem;grid-template-columns:1.15fr 1fr;align-items:center;padding:2.2rem 0 1rem;position:relative}
+@media(max-width:720px){.hero{grid-template-columns:1fr}}
+.hero h1{font-size:clamp(2.1rem,5.5vw,3.4rem);color:var(--navy)}
+@media(prefers-color-scheme:dark){.hero h1{color:var(--ink)}}
+.hero p{font-size:1.08rem;color:var(--mut);max-width:34rem}
+.hero .kicker{display:inline-block;font-size:.8rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#8a5a00;background:#fff3cf;padding:.3rem .7rem;border-radius:99px;margin-bottom:1rem}
+@media(prefers-color-scheme:dark){.hero .kicker{color:var(--gold2);background:#2a2411}}
+.hero form{padding:1.6rem;border-top:4px solid var(--gold)}
+.hero form h2{font-size:1.4rem}
+.hero form button{width:100%;margin-top:.4rem;padding:.7rem}
+.hero form p{margin:1rem 0 0}
+#toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:.7rem 1.2rem;border-radius:11px;display:none;z-index:9;box-shadow:0 10px 30px rgba(0,0,0,.25);border-left:4px solid var(--gold);font-weight:500}
+#toast.err{background:var(--bad);border-left-color:#fff}.tabs{display:flex;gap:.4rem;margin-bottom:.8rem}
+main>h2{margin-bottom:.9rem}
+main>p.mut{margin-top:-.4rem}
+pre{font:.88rem/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border-radius:8px;padding:.7rem .8rem;margin:.5rem 0 0 !important}
+a{color:var(--navy)}@media(prefers-color-scheme:dark){a{color:var(--gold2)}}
+#det{margin-top:.4rem}
+#det .card{border-top:4px solid var(--gold)}
+#det h3{margin-bottom:.6rem}
+#l .card p{color:var(--mut);margin:.5rem 0 .8rem;font-size:.95rem}
+#l .card .row{margin-bottom:.4rem}
+#l .card:after{content:"";display:block;clear:both}
+#l .card .gold{float:right;margin-top:-.2rem}
+img[alt^="Código"]{border-radius:12px;border:1px solid var(--line);padding:6px;background:#fff}
+@media(max-width:560px){header{gap:.6rem}nav{flex:1 1 100%;order:3}#who{width:100%;justify-content:space-between}}
 </style></head><body>
 <header><b>SAE</b><nav id="nav" aria-label="Principal"></nav><span id="who" class="mut" style="color:#cfd8e8"></span></header>
 <main id="app" aria-live="polite"></main><div id="toast" role="status"></div>
@@ -51,7 +83,7 @@ function nav(){const r=location.hash.slice(1)||'catalogo';$('#who').innerHTML=U?
   if(!U)return login();({catalogo,mis,agenda,bitacora,qr}[r]||catalogo)()}
 addEventListener('hashchange',nav);
 async function salir(){await api('/logout','POST');U=null;nav()}
-function login(reg){ $('#app').innerHTML=`<section class="hero"><div><h1>Encuentra a tu docente y agenda tu asesoría.</h1>
+function login(reg){ $('#app').innerHTML=`<section class="hero"><div><span class="kicker">Unidad Académica de Economía · UAN</span><h1>Encuentra a tu docente y agenda tu asesoría.</h1>
 <p>Consulta la disponibilidad real de los docentes de la Unidad Académica de Economía, reserva un horario y recibe confirmación. Gratis y desde tu celular.</p></div>
 <form class="card" id="f"><h2>${reg?'Crear cuenta':'Iniciar sesión'}</h2>
 <label for="m">Matrícula o clave de docente</label><input id="m" required autocomplete="username">
