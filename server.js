@@ -18,6 +18,18 @@ CREATE TABLE IF NOT EXISTS asesorias(id INTEGER PRIMARY KEY, estudiante_id INTEG
   materia TEXT NOT NULL, duda TEXT NOT NULL, estado TEXT NOT NULL DEFAULT 'pendiente', creada TEXT DEFAULT CURRENT_TIMESTAMP);
 CREATE TABLE IF NOT EXISTS notificaciones(id INTEGER PRIMARY KEY, asesoria_id INTEGER, destinatario TEXT, asunto TEXT,
   cuerpo TEXT, enviado INTEGER DEFAULT 0, fecha TEXT DEFAULT CURRENT_TIMESTAMP);`);
+// Las fechas y horas de los horarios son hora local de la Unidad Académica (no UTC): "ahora" se calcula en esa zona (ZONA_HORARIA, por defecto Nayarit/Pacífico).
+const ZONA_DEFECTO = 'America/Mazatlan';
+function ahoraLocal() {
+  const parte = {};
+  const fmt = z => new Intl.DateTimeFormat('en-CA', { timeZone: z, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  let f; try { f = fmt(process.env.ZONA_HORARIA || ZONA_DEFECTO); } catch { f = fmt(ZONA_DEFECTO); }   // zona inválida: se usa la de por defecto
+  for (const x of f.formatToParts(new Date(Date.now()))) parte[x.type] = x.value;
+  return { fecha: `${parte.year}-${parte.month}-${parte.day}`, hora: `${parte.hour}:${parte.minute}` };
+}
+const yaPaso = (fecha, hora) => { const n = ahoraLocal(); return `${fecha} ${hora}` <= `${n.fecha} ${n.hora}`; };   // vigente solo si empieza después de ahora
+const futuro = al => `(${al}.fecha > ? OR (${al}.fecha = ? AND ${al}.hora > ?))`;       // condición SQL "empieza después de ahora" ...
+const paramsFuturo = () => { const n = ahoraLocal(); return [n.fecha, n.fecha, n.hora]; };  // ... y sus 3 parámetros
 const q = (s, ...p) => db.prepare(s).all(...p), one = (s, ...p) => db.prepare(s).get(...p), run = (s, ...p) => db.prepare(s).run(...p);
 
 // ---- Correo: SMTP real si hay variables; si no, queda registrado en la bitácora (enviado=0) ----
@@ -86,17 +98,18 @@ app.get('/api/me', (req, res) => res.json({ user: req.user }));
 app.get('/api/docentes', auth(), (req, res) => {
   const t = `%${(req.query.q || '').trim()}%`;
   res.json(q(`SELECT d.id, u.nombre, d.materias, d.cubiculo, d.foto,
-    (SELECT COUNT(*) FROM horarios h WHERE h.docente_id=d.id AND h.libre=1 AND h.fecha>=date('now')) libres
-    FROM docentes d JOIN users u ON u.id=d.user_id WHERE u.nombre LIKE ? OR d.materias LIKE ? ORDER BY u.nombre`, t, t));
+    (SELECT COUNT(*) FROM horarios h WHERE h.docente_id=d.id AND h.libre=1 AND ${futuro('h')}) libres
+    FROM docentes d JOIN users u ON u.id=d.user_id WHERE u.nombre LIKE ? OR d.materias LIKE ? ORDER BY u.nombre`, ...paramsFuturo(), t, t));
 });
 app.get('/api/docentes/:id/horarios', auth(), (req, res) =>
-  res.json(q("SELECT id,fecha,hora FROM horarios WHERE docente_id=? AND libre=1 AND fecha>=date('now') ORDER BY fecha,hora", req.params.id)));
+  res.json(q(`SELECT h.id,h.fecha,h.hora FROM horarios h WHERE h.docente_id=? AND h.libre=1 AND ${futuro('h')} ORDER BY h.fecha,h.hora`, req.params.id, ...paramsFuturo())));
 
 app.post('/api/asesorias', auth('estudiante'), async (req, res) => {
   const { horario_id, materia, duda } = req.body || {};
   if (!horario_id || !materia?.trim() || !duda?.trim()) return res.status(400).json({ error: 'Indica horario, materia y tu duda.' });
   const h = one('SELECT * FROM horarios WHERE id=?', horario_id);
   if (!h) return res.status(404).json({ error: 'Horario inexistente.' });
+  if (yaPaso(h.fecha, h.hora)) return res.status(400).json({ error: 'Ese horario ya pasó. Elige otro.' });   // antes de reservarlo: no consume el horario
   // Validación de disponibilidad atómica: solo se reserva si sigue libre
   const r = run('UPDATE horarios SET libre=0 WHERE id=? AND libre=1', horario_id);
   if (!r.changes) return res.status(409).json({ error: 'Ese horario ya fue ocupado. Elige otro.' });
